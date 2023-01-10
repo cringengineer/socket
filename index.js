@@ -1,46 +1,58 @@
-const express = require('express');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
 const app = express();
-const http = require('http');
-const {Server} = require('socket.io');
-const cors = require('cors');
-const router = require('./route');
-const {addUser, findUser, getRoom, removeUser} = require('./users');
 
-app.use(cors({origin: "*"}));
-app.use(router);
+const route = require("./route");
+const { addUser, findUser, getRoom, removeUser } = require("./users");
+
+app.use(cors({ origin: "*" }));
+app.use(route);
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
-    }
-})
+        methods: ["GET", "POST"],
+    },
+});
 
-io.on('connection', (socket) => {
-    socket.on('join', ({name, room}) => {
+io.on("connection", (socket) => {
+    socket.on("join", ({ name, room }) => {
         socket.join(room);
 
-        const {user} = addUser({name, room});
+        const { user, isExist } = addUser({ name, room });
 
-        socket.emit('message', {
-            data: {user: {name: 'Admin'}, message: `Hello ${name}`}
+        const userMessage = isExist
+            ? `${user.name}, here you go again`
+            : `Hello ${user.name}`;
+
+        socket.emit("message", {
+            data: { user: { name: "Admin" }, message: userMessage },
         });
 
-        socket.broadcast.to(user.room).emit('message', {
-            data: {user: {name: 'Admin'}, message: `${user.name} has joined`}
-        })
+        socket.broadcast.to(user.room).emit("message", {
+            data: { user: { name: "Admin" }, message: `${user.name} has joined` },
+        });
 
-        socket.to(user.room).emit("joinedRoom", {data: {room: user.room, users: getRoom(user.room)}});
+        io.to(user.room).emit("room", {
+            data: { users: getRoom(user.room) },
+        });
     });
 
-    socket.on('sendMessage', ({message, params}) => {
+    socket.on("sendMessage", ({ message, params }) => {
         const user = findUser(params);
-        io.to(user.room).emit("message", {data: {user, message}});
-    })
 
-    socket.on('leaveRoom', ({params}) => {
+        if (user) {
+            io.to(user.room).emit("message", { data: { user, message } });
+        }
+    });
+
+    socket.on("leaveRoom", ({ params }) => {
         const user = removeUser(params);
+
         if (user) {
             const { room, name } = user;
 
@@ -54,13 +66,11 @@ io.on('connection', (socket) => {
         }
     });
 
-    io.on('disconnect', () => {
-        console.log('disconnect')
+    io.on("disconnect", () => {
+        console.log("Disconnect");
     });
-})
-
-
-server.listen(5000, () => {
-    console.log('Server is working')
 });
 
+server.listen(5000, () => {
+    console.log("Server is running");
+});

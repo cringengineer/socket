@@ -5,21 +5,24 @@ const findUser = (user) => {
     return users.find(item => item.name === user.name && item.room === user.room);
 }
 const addUser = (user) => {
-    const isExist = users.find(item => item.name === user.name && item.room === user.room);
+    const isExist = findUser(user);
+
     !isExist && users.push(user);
+
     const currentUser = isExist || user;
-    return {isExist: !!isExist, user: currentUser}
+
+    return { isExist: !!isExist, user: currentUser };
 };
-const getRoom = (room) => {
-    return users.filter(u => u.room === room)
-};
+
+const getRoom = (room) => users.filter((u) => u.room === room);
 
 const removeUser = (user) => {
-    const foundedUser = findUser(user);
-    if (foundedUser) {
-        users = users.filter(({room, name}) => room === foundedUser.room && name !== foundedUser.name);
+    const found = findUser(user);
+    if (found) {
+        users = users.filter(
+            ({ room, name }) => room === found.room && name !== found.name
+        );
     }
-    return foundedUser
-}
-
+    return found;
+};
 module.exports = {addUser, findUser, getRoom, removeUser}
